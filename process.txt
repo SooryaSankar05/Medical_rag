@@ -1,0 +1,4 @@
+1)first collect data and store it in raw
+2)we load these pdf_loader to read all those raw data
+3)chunking splitting the pdf into n chunks text_splitter
+4)creating emmbading soo that the sentence can be converted into numerical values
