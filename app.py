@@ -7,11 +7,12 @@ import os
 from src.ingestion.add_pdf import (
     add_pdf
 )
-
-uploaded_file = st.file_uploader(
-    "Upload PDF",
-    type=["pdf"]
+from src.database.user_repository import (
+    create_user,
+    verify_user_credentials,
+    get_user_by_username
 )
+
 # =========================
 # Page Config
 # =========================
@@ -29,11 +30,108 @@ st.set_page_config(
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+if "user_id" not in st.session_state:
+    st.session_state.user_id = None
+
+if "username" not in st.session_state:
+    st.session_state.username = None
+
+if "auth_page" not in st.session_state:
+    st.session_state.auth_page = "login"
+
 # =========================
-# Title
+# Authentication Functions
+# =========================
+
+def show_login_page():
+    st.title("🩺 Medical Literature Assistant")
+    st.subheader("Login")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        if username and password:
+            if verify_user_credentials(username, password):
+                user = get_user_by_username(username)
+                st.session_state.user_id = user.id
+                st.session_state.username = user.username
+                st.session_state.auth_page = "authenticated"
+                st.success("Login successful!")
+                st.rerun()
+            else:
+                st.error("Invalid username or password")
+        else:
+            st.error("Please enter both username and password")
+
+    if st.button("Create an account"):
+        st.session_state.auth_page = "signup"
+        st.rerun()
+
+
+def show_signup_page():
+    st.title("🩺 Medical Literature Assistant")
+    st.subheader("Sign Up")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    confirm_password = st.text_input("Confirm Password", type="password")
+
+    if st.button("Sign Up"):
+        if username and password and confirm_password:
+            if password != confirm_password:
+                st.error("Passwords do not match")
+            else:
+                try:
+                    create_user(username, password)
+                    st.success("Account created successfully! Please login.")
+                    st.session_state.auth_page = "login"
+                    st.rerun()
+                except ValueError as e:
+                    st.error(str(e))
+                except Exception as e:
+                    st.error("Error creating account. Please try again.")
+        else:
+            st.error("Please fill in all fields")
+
+    if st.button("Back to Login"):
+        st.session_state.auth_page = "login"
+        st.rerun()
+
+
+def show_logout():
+    if st.button("Logout"):
+        st.session_state.user_id = None
+        st.session_state.username = None
+        st.session_state.auth_page = "login"
+        st.session_state.messages = []
+        st.rerun()
+
+
+# =========================
+# Authentication Flow
+# =========================
+
+if not st.session_state.user_id:
+    if st.session_state.auth_page == "login":
+        show_login_page()
+    elif st.session_state.auth_page == "signup":
+        show_signup_page()
+    st.stop()
+
+# =========================
+# Main App (Authenticated)
 # =========================
 
 st.title("🩺 Medical Literature Assistant")
+
+col1, col2 = st.columns([6, 1])
+with col1:
+    st.write(f"Welcome, {st.session_state.username}!")
+with col2:
+    show_logout()
+
+st.divider()
 
 question = st.text_input(
     "Ask a medical question:"
@@ -108,6 +206,17 @@ if st.session_state.messages:
                     )
 
             st.divider()
+
+# =========================
+# PDF Upload
+# =========================
+
+st.header("Upload PDF")
+
+uploaded_file = st.file_uploader(
+    "Upload PDF",
+    type=["pdf"]
+)
 
 if uploaded_file:
 
