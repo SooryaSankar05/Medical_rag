@@ -12,6 +12,11 @@ from src.database.user_repository import (
     verify_user_credentials,
     get_user_by_username
 )
+from src.database.chat_repository import (
+    save_chat,
+    load_chat,
+    clear_chat
+)
 
 # =========================
 # Page Config
@@ -57,6 +62,10 @@ def show_login_page():
                 st.session_state.user_id = user.id
                 st.session_state.username = user.username
                 st.session_state.auth_page = "authenticated"
+                
+                # Load chat history from database
+                st.session_state.messages = load_chat(user.id)
+                
                 st.success("Login successful!")
                 st.rerun()
             else:
@@ -108,6 +117,17 @@ def show_logout():
         st.rerun()
 
 
+def show_clear_chat():
+    if st.button("Clear Chat History"):
+        try:
+            clear_chat(st.session_state.user_id)
+            st.session_state.messages = []
+            st.success("Chat history cleared!")
+            st.rerun()
+        except Exception as e:
+            st.error("Error clearing chat history")
+
+
 # =========================
 # Authentication Flow
 # =========================
@@ -125,10 +145,12 @@ if not st.session_state.user_id:
 
 st.title("🩺 Medical Literature Assistant")
 
-col1, col2 = st.columns([6, 1])
+col1, col2, col3 = st.columns([5, 1, 1])
 with col1:
     st.write(f"Welcome, {st.session_state.username}!")
 with col2:
+    show_clear_chat()
+with col3:
     show_logout()
 
 st.divider()
@@ -155,13 +177,23 @@ if st.button("Search"):
         )
 
         # Save Conversation
-        st.session_state.messages.append(
-            {
-                "question": question,
-                "answer": answer,
-                "sources": sources
-            }
-        )
+        message = {
+            "question": question,
+            "answer": answer,
+            "sources": sources
+        }
+        st.session_state.messages.append(message)
+
+        # Save to database
+        try:
+            save_chat(
+                st.session_state.user_id,
+                question,
+                answer,
+                sources
+            )
+        except Exception as e:
+            st.error(f"Error saving chat to database: {e}")
 
 # =========================
 # Chat History
