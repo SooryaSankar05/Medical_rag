@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine
 
 DATABASE_URL = (
-    "postgresql://postgres:Soorya_321@localhost:5433/medical_rag"
+    "postgresql://postgres:soorya_123@localhost:5432/medical_rag_v2"
 )
 
 engine = create_engine(
