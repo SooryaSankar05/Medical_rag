@@ -29,11 +29,11 @@ for pdf in pdf_files:
 
     print(f"Processing: {pdf.name}")
 
-    text = extract_text_from_pdf(str(pdf))
-    text = remove_references(text)
+    pages = extract_text_from_pdf(str(pdf))
+    pages = remove_references(pages)
 
     chunks = split_text(
-        text,
+        pages,
         pdf.name,
         start_chunk_id=len(all_chunks),
         user_id=None  # Existing docs are public (accessible to all users)

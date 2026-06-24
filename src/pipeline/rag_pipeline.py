@@ -195,12 +195,25 @@ def ask_question(
             {
                 "pdf": chunk["source"],
                 "chunk": chunk["chunk_id"],
+                "page": chunk.get("page_number"),
                 "score": round(
                     score,
                     4
                 ),
-                "preview": chunk["text"][:300]
+                "preview": chunk["text"][:300],
+                "text": chunk["text"]  # Full chunk text for expandable viewer
             }
         )
 
-    return answer, sources
+    # =========================
+    # Confidence Score
+    # =========================
+
+    if reranked_chunks:
+        # Calculate confidence as average of top reranker scores
+        scores = [score for chunk, score in reranked_chunks]
+        confidence = round(sum(scores) / len(scores), 4)
+    else:
+        confidence = 0.0
+
+    return answer, sources, confidence

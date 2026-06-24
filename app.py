@@ -150,12 +150,41 @@ if not st.session_state.user_id:
 
 st.title("🩺 Medical Literature Assistant")
 
-col1, col2, col3 = st.columns([5, 1, 1])
+col1, col2, col3, col4 = st.columns([5, 1, 1, 1])
 with col1:
     st.write(f"Welcome, {st.session_state.username}!")
 with col2:
     show_clear_chat()
 with col3:
+    if st.button("💾 Export"):
+        if st.session_state.messages:
+            # Create export content
+            export_text = f"Medical Literature Assistant - Chat History\n"
+            export_text += f"User: {st.session_state.username}\n"
+            export_text += f"Export Date: {st.session_state.get('export_date', 'N/A')}\n"
+            export_text += "=" * 50 + "\n\n"
+
+            for idx, message in enumerate(reversed(st.session_state.messages), 1):
+                export_text += f"--- Q&A {idx} ---\n"
+                export_text += f"Question: {message['question']}\n"
+                export_text += f"Answer: {message['answer']}\n"
+                if message.get("confidence") is not None:
+                    export_text += f"Confidence: {message['confidence']}\n"
+                export_text += f"Sources: {len(message['sources'])} source(s)\n"
+                for source in message['sources']:
+                    page_info = f" | Page {source.get('page', 'N/A')}" if source.get('page') else ""
+                    export_text += f"  - {source['pdf']} | Chunk {source['chunk']}{page_info}\n"
+                export_text += "\n"
+
+            st.download_button(
+                label="Download TXT",
+                data=export_text,
+                file_name=f"chat_history_{st.session_state.username}_{st.session_state.get('export_date', 'export')}.txt",
+                mime="text/plain"
+            )
+        else:
+            st.warning("No chat history to export.")
+with col4:
     show_logout()
 
 st.divider()
@@ -176,7 +205,7 @@ if st.button("Search"):
             "Searching medical literature..."
         ):
 
-            answer, sources = ask_question(
+            answer, sources, confidence = ask_question(
             question,
             st.session_state.messages,
             st.session_state.user_id
@@ -185,12 +214,14 @@ if st.button("Search"):
         # Fallback for None or failed answer
         if not answer or answer == "Gemini request failed." or answer == "The language model is temporarily unavailable. Please try again.":
             answer = "I could not generate an answer from the retrieved context."
+            confidence = 0.0
 
         # Save Conversation
         message = {
             "question": question,
             "answer": answer,
-            "sources": sources
+            "sources": sources,
+            "confidence": confidence
         }
         st.session_state.messages.append(message)
 
@@ -231,21 +262,38 @@ if st.session_state.messages:
                 message["answer"]
             )
 
+            # Display confidence score if available
+            if message.get("confidence") is not None:
+                st.caption(
+                    f"Confidence Score: {message['confidence']}"
+                )
+
             st.subheader("Sources")
 
             for source in message["sources"]:
 
-                with st.expander(
-                    f"{source['pdf']} | Chunk {source['chunk']}"
-                ):
+                # Build source label with page number if available
+                page_info = f" | Page {source.get('page', 'N/A')}" if source.get('page') else ""
+                source_label = f"{source['pdf']} | Chunk {source['chunk']}{page_info}"
+
+                with st.expander(source_label):
 
                     st.write(
                         f"Reranker Score: {source['score']}"
                     )
 
-                    st.write(
-                        source["preview"]
-                    )
+                    # Show full chunk text if available
+                    if source.get('text'):
+                        st.text_area(
+                            "Chunk Text",
+                            source['text'],
+                            height=200,
+                            key=f"chunk_{source['chunk']}"
+                        )
+                    else:
+                        st.write(
+                            source["preview"]
+                        )
 
             st.divider()
 
