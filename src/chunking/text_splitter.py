@@ -11,7 +11,7 @@ def split_text(
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=800,
-        chunk_overlap=150
+        chunk_overlap=200
     )
 
     raw_chunks = splitter.split_text(

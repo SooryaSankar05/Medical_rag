@@ -44,6 +44,10 @@ metadata = load_metadata(
     "data/vector_store/metadata.pkl"
 )
 
+# Print counts for debugging
+print(f"[DEBUG] FAISS index size: {index.ntotal}")
+print(f"[DEBUG] Metadata count: {len(metadata)}")
+
 bm25 = build_bm25(
     metadata
 )
@@ -81,6 +85,7 @@ def ask_question(
     # Hybrid Retrieval
     # =========================
 
+    print("[RETRIEVAL] Starting hybrid retrieval")
     all_indices = set()
 
     for query in expanded_queries:
@@ -92,7 +97,7 @@ def ask_question(
         distances, faiss_indices = search_faiss(
             index,
             query_embedding,
-            top_k=5
+            top_k=10
         )
 
         for idx in faiss_indices[0]:
@@ -104,7 +109,7 @@ def ask_question(
         bm25_indices = search_bm25(
             bm25,
             query,
-            top_k=5
+            top_k=10
         )
 
         for idx in bm25_indices:
@@ -120,6 +125,11 @@ def ask_question(
     retrieved_chunks = []
 
     for idx in all_indices:
+
+        # Defensive validation: skip invalid indices
+        if idx >= len(metadata):
+            print(f"[WARNING] Skipping invalid index {idx} (metadata count: {len(metadata)})")
+            continue
 
         retrieved_chunks.append(
             metadata[idx]
@@ -160,6 +170,7 @@ def ask_question(
     # Gemini
     # =========================
 
+    print("[GENERATION] Generating answer with Gemini")
     answer = generate_answer(
         prompt
     )

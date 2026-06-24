@@ -17,6 +17,11 @@ from src.database.chat_repository import (
     load_chat,
     clear_chat
 )
+from src.database.document_repository import (
+    save_document,
+    get_documents_by_user,
+    delete_document
+)
 
 # =========================
 # Page Config
@@ -176,6 +181,10 @@ if st.button("Search"):
             st.session_state.messages
         )
 
+        # Fallback for None or failed answer
+        if not answer or answer == "Gemini request failed." or answer == "The language model is temporarily unavailable. Please try again.":
+            answer = "I could not generate an answer from the retrieved context."
+
         # Save Conversation
         message = {
             "question": question,
@@ -257,23 +266,74 @@ if uploaded_file:
         uploaded_file.name
     )
 
-    with open(
-        save_path,
-        "wb"
-    ) as f:
+    # Check if document already exists for this user
+    existing_docs = get_documents_by_user(st.session_state.user_id)
+    doc_exists = any(doc.filename == uploaded_file.name for doc in existing_docs)
 
-        f.write(
-            uploaded_file.getbuffer()
+    if not doc_exists:
+        with open(
+            save_path,
+            "wb"
+        ) as f:
+
+            f.write(
+                uploaded_file.getbuffer()
+            )
+
+        with st.spinner(
+            "Processing PDF..."
+        ):
+
+            print("[INGESTION] Processing new PDF upload")
+            add_pdf(
+                save_path
+            )
+
+        # Save document metadata to database
+        try:
+            save_document(
+                st.session_state.user_id,
+                uploaded_file.name,
+                save_path
+            )
+        except ValueError as e:
+            st.error(str(e))
+            st.stop()
+        except Exception as e:
+            st.error(f"Error saving document metadata: {e}")
+            st.stop()
+
+        st.success(
+            f"{uploaded_file.name} added to knowledge base."
         )
+    else:
+        st.info(f"Document '{uploaded_file.name}' already uploaded.")
 
-    with st.spinner(
-        "Processing PDF..."
-    ):
+# =========================
+# Document Listing
+# =========================
 
-        add_pdf(
-            save_path
-        )
+st.header("Your Documents")
 
-    st.success(
-        f"{uploaded_file.name} added to knowledge base."
-    )
+documents = get_documents_by_user(st.session_state.user_id)
+
+if documents:
+    for doc in documents:
+        with st.container():
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                st.write(f"**{doc.filename}**")
+                st.caption(f"Uploaded: {doc.uploaded_at.strftime('%Y-%m-%d %H:%M')}")
+            with col2:
+                if st.button("Delete", key=f"delete_{doc.id}"):
+                    try:
+                        delete_document(doc.id, st.session_state.user_id)
+                        st.success("Document deleted!")
+                        st.rerun()
+                    except PermissionError as e:
+                        st.error(str(e))
+                    except Exception as e:
+                        st.error(f"Error deleting document: {e}")
+            st.divider()
+else:
+    st.write("No documents uploaded yet.")

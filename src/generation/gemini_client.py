@@ -22,6 +22,11 @@ def generate_answer(prompt):
 
     except Exception as e:
 
+        error_str = str(e)
         print(f"Gemini Error: {e}")
+
+        # Handle 503 UNAVAILABLE error specifically
+        if "503" in error_str or "UNAVAILABLE" in error_str:
+            return "The language model is temporarily unavailable. Please try again."
 
         return "Gemini request failed."
