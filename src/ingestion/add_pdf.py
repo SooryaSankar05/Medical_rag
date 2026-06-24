@@ -27,7 +27,7 @@ from src.preprocessing.cleaner import (
 import numpy as np
 
 
-def add_pdf(pdf_path):
+def add_pdf(pdf_path, user_id=None):
 
     print(
         f"Processing: {pdf_path}"
@@ -66,7 +66,8 @@ def add_pdf(pdf_path):
     chunks = split_text(
         text,
         pdf_name,
-        start_chunk_id=next_chunk_id
+        start_chunk_id=next_chunk_id,
+        user_id=user_id
     )
 
     # =========================

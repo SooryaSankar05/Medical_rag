@@ -178,7 +178,8 @@ if st.button("Search"):
 
             answer, sources = ask_question(
             question,
-            st.session_state.messages
+            st.session_state.messages,
+            st.session_state.user_id
         )
 
         # Fallback for None or failed answer
@@ -286,7 +287,8 @@ if uploaded_file:
 
             print("[INGESTION] Processing new PDF upload")
             add_pdf(
-                save_path
+                save_path,
+                st.session_state.user_id
             )
 
         # Save document metadata to database

@@ -58,7 +58,8 @@ bm25 = build_bm25(
 
 def ask_question(
     question,
-    chat_history=None
+    chat_history=None,
+    user_id=None
 ):
 
     # =========================
@@ -131,9 +132,16 @@ def ask_question(
             print(f"[WARNING] Skipping invalid index {idx} (metadata count: {len(metadata)})")
             continue
 
-        retrieved_chunks.append(
-            metadata[idx]
-        )
+        chunk = metadata[idx]
+
+        # User isolation: filter by user_id if provided
+        # Chunks with user_id=None are public and accessible to all users
+        if user_id is not None:
+            chunk_user_id = chunk.get("user_id")
+            if chunk_user_id is not None and chunk_user_id != user_id:
+                continue
+
+        retrieved_chunks.append(chunk)
 
     # =========================
     # Reranking

@@ -35,7 +35,8 @@ for pdf in pdf_files:
     chunks = split_text(
         text,
         pdf.name,
-        start_chunk_id=len(all_chunks)
+        start_chunk_id=len(all_chunks),
+        user_id=None  # Existing docs are public (accessible to all users)
     )
 
     all_chunks.extend(chunks)

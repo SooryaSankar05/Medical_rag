@@ -6,7 +6,8 @@ from langchain_text_splitters import (
 def split_text(
     text,
     source,
-    start_chunk_id=0
+    start_chunk_id=0,
+    user_id=None
 ):
 
     splitter = RecursiveCharacterTextSplitter(
@@ -28,7 +29,8 @@ def split_text(
             {
                 "text": chunk,
                 "source": source,
-                "chunk_id": start_chunk_id + idx
+                "chunk_id": start_chunk_id + idx,
+                "user_id": user_id
             }
         )
 
