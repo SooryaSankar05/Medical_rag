@@ -28,6 +28,8 @@ from src.retrieval.bm25_retriever import (
     search_bm25
 )
 
+import time
+
 from src.retrieval.question_rewriter import (
     rewrite_question
 )
@@ -87,6 +89,7 @@ def ask_question(
     # =========================
 
     print("[RETRIEVAL] Starting hybrid retrieval")
+    retrieval_start = time.time()
     all_indices = set()
 
     for query in expanded_queries:
@@ -153,6 +156,9 @@ def ask_question(
         top_n=3
     )
 
+    retrieval_end = time.time()
+    retrieval_time = retrieval_end - retrieval_start
+
     # =========================
     # Context Creation
     # =========================
@@ -179,9 +185,12 @@ def ask_question(
     # =========================
 
     print("[GENERATION] Generating answer with Gemini")
+    generation_start = time.time()
     answer = generate_answer(
         prompt
     )
+    generation_end = time.time()
+    generation_time = generation_end - generation_start
 
     # =========================
     # Sources
@@ -216,4 +225,11 @@ def ask_question(
     else:
         confidence = 0.0
 
-    return answer, sources, confidence
+    # Calculate total time
+    total_time = retrieval_time + generation_time
+
+    return answer, sources, confidence, {
+        "retrieval_time": round(retrieval_time, 3),
+        "generation_time": round(generation_time, 3),
+        "total_time": round(total_time, 3)
+    }

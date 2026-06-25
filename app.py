@@ -22,6 +22,18 @@ from src.database.document_repository import (
     get_documents_by_user,
     delete_document
 )
+from src.database.feedback_repository import (
+    save_feedback
+)
+from src.database.analytics_repository import (
+    save_query_analytics,
+    get_analytics_stats
+)
+from src.database.error_repository import (
+    log_error,
+    get_recent_errors
+)
+import traceback
 
 # =========================
 # Page Config
@@ -205,36 +217,59 @@ if st.button("Search"):
             "Searching medical literature..."
         ):
 
-            answer, sources, confidence = ask_question(
-            question,
-            st.session_state.messages,
-            st.session_state.user_id
-        )
-
-        # Fallback for None or failed answer
-        if not answer or answer == "Gemini request failed." or answer == "The language model is temporarily unavailable. Please try again.":
-            answer = "I could not generate an answer from the retrieved context."
-            confidence = 0.0
-
-        # Save Conversation
-        message = {
-            "question": question,
-            "answer": answer,
-            "sources": sources,
-            "confidence": confidence
-        }
-        st.session_state.messages.append(message)
-
-        # Save to database
-        try:
-            save_chat(
-                st.session_state.user_id,
+            try:
+                answer, sources, confidence, timing = ask_question(
                 question,
-                answer,
-                sources
+                st.session_state.messages,
+                st.session_state.user_id
             )
-        except Exception as e:
-            st.error(f"Error saving chat to database: {e}")
+
+                # Fallback for None or failed answer
+                if not answer or answer == "Gemini request failed." or answer == "The language model is temporarily unavailable. Please try again.":
+                    answer = "I could not generate an answer from the retrieved context."
+                    confidence = 0.0
+                    timing = {"retrieval_time": 0, "generation_time": 0, "total_time": 0}
+
+                # Save Conversation
+                message = {
+                    "question": question,
+                    "answer": answer,
+                    "sources": sources,
+                    "confidence": confidence
+                }
+                st.session_state.messages.append(message)
+
+                # Save to database
+                try:
+                    chat = save_chat(
+                        st.session_state.user_id,
+                        question,
+                        answer,
+                        sources,
+                        confidence
+                    )
+                    # Store db_id for feedback
+                    message["db_id"] = chat.id
+                    
+                    # Save query analytics
+                    try:
+                        save_query_analytics(
+                            st.session_state.user_id,
+                            question,
+                            retrieval_time=timing.get("retrieval_time"),
+                            generation_time=timing.get("generation_time"),
+                            total_time=timing.get("total_time"),
+                            confidence=confidence,
+                            num_sources=len(sources)
+                        )
+                    except Exception as e:
+                        print(f"Error saving analytics: {e}")
+                except Exception as e:
+                    st.error(f"Error saving chat to database: {e}")
+                    log_error(st.session_state.user_id, "DatabaseError", str(e), traceback.format_exc())
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
+                log_error(st.session_state.user_id, "QueryError", str(e), traceback.format_exc())
 
 # =========================
 # Chat History
@@ -267,6 +302,23 @@ if st.session_state.messages:
                 st.caption(
                     f"Confidence Score: {message['confidence']}"
                 )
+
+            # Feedback buttons
+            col_like, col_dislike = st.columns([1, 1])
+            with col_like:
+                if st.button("👍", key=f"like_{message.get('id', id(message))}"):
+                    try:
+                        save_feedback(st.session_state.user_id, message.get('db_id'), True)
+                        st.success("Thanks for your feedback!")
+                    except Exception as e:
+                        st.error(f"Error saving feedback: {e}")
+            with col_dislike:
+                if st.button("👎", key=f"dislike_{message.get('id', id(message))}"):
+                    try:
+                        save_feedback(st.session_state.user_id, message.get('db_id'), False)
+                        st.success("Thanks for your feedback!")
+                    except Exception as e:
+                        st.error(f"Error saving feedback: {e}")
 
             st.subheader("Sources")
 
@@ -387,3 +439,41 @@ if documents:
             st.divider()
 else:
     st.write("No documents uploaded yet.")
+
+# =========================
+# Admin Dashboard
+# =========================
+
+st.divider()
+st.header("📊 System Analytics")
+
+try:
+    stats = get_analytics_stats()
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Total Queries", stats["total_queries"])
+    with col2:
+        st.metric("Avg Retrieval Time", f"{stats['avg_retrieval_time']}s")
+    with col3:
+        st.metric("Avg Generation Time", f"{stats['avg_generation_time']}s")
+    with col4:
+        st.metric("Avg Confidence", stats["avg_confidence"])
+    
+    # Recent Errors
+    st.subheader("Recent Errors")
+    try:
+        recent_errors = get_recent_errors(limit=5)
+        if recent_errors:
+            for error in recent_errors:
+                with st.expander(f"{error.error_type} - {error.created_at.strftime('%Y-%m-%d %H:%M')}"):
+                    st.write(f"**Error:** {error.error_message}")
+                    if error.stack_trace:
+                        with st.expander("Stack Trace"):
+                            st.code(error.stack_trace)
+        else:
+            st.info("No recent errors")
+    except Exception as e:
+        st.error(f"Error loading error logs: {e}")
+except Exception as e:
+    st.error(f"Error loading analytics: {e}")

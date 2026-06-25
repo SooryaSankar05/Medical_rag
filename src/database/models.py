@@ -4,7 +4,9 @@ from sqlalchemy import (
     String,
     Text,
     ForeignKey,
-    DateTime
+    DateTime,
+    Float,
+    Boolean
 )
 from sqlalchemy.sql import func
 
@@ -66,6 +68,11 @@ class ChatHistory(Base):
         nullable=True
     )
 
+    confidence = Column(
+        Float,
+        nullable=True
+    )
+
     created_at = Column(
         DateTime,
         server_default=func.now(),
@@ -99,6 +106,128 @@ class Document(Base):
     )
 
     uploaded_at = Column(
+        DateTime,
+        server_default=func.now(),
+        nullable=False
+    )
+
+
+class Feedback(Base):
+
+    __tablename__ = "feedback"
+
+    id = Column(
+        Integer,
+        primary_key=True
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False
+    )
+
+    chat_id = Column(
+        Integer,
+        ForeignKey("chat_history.id"),
+        nullable=False
+    )
+
+    is_positive = Column(
+        Boolean,
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime,
+        server_default=func.now(),
+        nullable=False
+    )
+
+
+class QueryAnalytics(Base):
+
+    __tablename__ = "query_analytics"
+
+    id = Column(
+        Integer,
+        primary_key=True
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False
+    )
+
+    question = Column(
+        Text,
+        nullable=False
+    )
+
+    retrieval_time = Column(
+        Float,
+        nullable=True
+    )
+
+    generation_time = Column(
+        Float,
+        nullable=True
+    )
+
+    total_time = Column(
+        Float,
+        nullable=True
+    )
+
+    confidence = Column(
+        Float,
+        nullable=True
+    )
+
+    num_sources = Column(
+        Integer,
+        nullable=True
+    )
+
+    created_at = Column(
+        DateTime,
+        server_default=func.now(),
+        nullable=False
+    )
+
+
+class ErrorLog(Base):
+
+    __tablename__ = "error_logs"
+
+    id = Column(
+        Integer,
+        primary_key=True
+    )
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=True
+    )
+
+    error_type = Column(
+        String,
+        nullable=False
+    )
+
+    error_message = Column(
+        Text,
+        nullable=False
+    )
+
+    stack_trace = Column(
+        Text,
+        nullable=True
+    )
+
+    created_at = Column(
         DateTime,
         server_default=func.now(),
         nullable=False

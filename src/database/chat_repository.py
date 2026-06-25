@@ -27,7 +27,8 @@ def save_chat(
     user_id,
     question,
     answer,
-    sources
+    sources,
+    confidence=None
 ):
 
     with Session(engine) as session:
@@ -39,7 +40,8 @@ def save_chat(
             user_id=user_id,
             question=question,
             answer=answer,
-            sources=json.dumps(serializable_sources) if serializable_sources else None
+            sources=json.dumps(serializable_sources) if serializable_sources else None,
+            confidence=confidence
         )
 
         try:
@@ -71,9 +73,11 @@ def load_chat(user_id):
             sources = json.loads(chat.sources) if chat.sources else []
 
             result.append({
+                "db_id": chat.id,
                 "question": chat.question,
                 "answer": chat.answer,
-                "sources": sources
+                "sources": sources,
+                "confidence": chat.confidence
             })
 
         return result
